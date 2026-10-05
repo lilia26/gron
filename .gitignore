@@ -12,3 +12,4 @@ executable
 .programbench/venv/
 .programbench/tests/
 .programbench/run/
+poc.sh

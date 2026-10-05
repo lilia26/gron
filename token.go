@@ -71,12 +71,8 @@ var sprintFns = map[tokenTyp]sprintFn{
 
 // isValue returns true if the token is a valid value type
 func (t token) isValue() bool {
-	switch t.typ {
-	case typString, typNumber, typTrue, typFalse, typNull, typEmptyArray, typEmptyObject:
-		return true
-	default:
-		return false
-	}
+	offset := uint(t.typ) - uint(typString)
+	return offset <= uint(typEmptyObject-typString)
 }
 
 // isPunct returns true if the token is a punctuation type
@@ -99,16 +95,13 @@ func (t token) format() string {
 
 // formatColor returns the colored formatted version of the token text
 func (t token) formatColor() string {
-	text := t.text
-	if t.typ == typEquals {
-		text = " " + text + " "
-	}
-	fn, ok := sprintFns[t.typ]
-	if ok {
+	text := t.format()
+
+	// apply color after formatting so spacing stays identical
+	if fn, ok := sprintFns[t.typ]; ok {
 		return fn(text)
 	}
 	return text
-
 }
 
 // valueTokenFromInterface takes any valid value and
@@ -136,52 +129,47 @@ func valueTokenFromInterface(v interface{}) token {
 	}
 }
 
-// quoteString takes a string and returns a quoted and
-// escaped string valid for use in gron output
-func quoteString(s string) string {
+// shortEscapes contains the exact spellings used in gron output
+var shortEscapes = map[rune]string{
+	'\\':     `\\`,
+	'"':      `\"`,
+	'\b':     `\b`,
+	'\f':     `\f`,
+	'\n':     `\n`,
+	'\r':     `\r`,
+	'\t':     `\t`,
+	'\u2028': `\u2028`,
+	'\u2029': `\u2029`,
+}
 
+// writeQuotedRune writes one rune without the surrounding quotes
+func writeQuotedRune(out *bytes.Buffer, r rune) {
+	if escaped, ok := shortEscapes[r]; ok {
+		_, _ = out.WriteString(escaped)
+		return
+	}
+
+	// Preserve uppercase hexadecimal escapes for other control runes.
+	if unicode.IsControl(r) {
+		_, _ = fmt.Fprintf(out, `\u%04X`, r)
+		return
+	}
+
+	_, _ = out.WriteRune(r)
+}
+
+// quoteString takes a string and returns a quoted and
+// escaped string valid for use in gron output.
+func quoteString(s string) string {
 	out := &bytes.Buffer{}
-	// bytes.Buffer never returns errors on these methods.
-	// errors are explicitly ignored to keep the linter
-	// happy. A price worth paying so that the linter
-	// remains useful.
+
+	// Buffer writes cannot fail; ignored errors match the original code.
 	_ = out.WriteByte('"')
 
 	for _, r := range s {
-		switch r {
-		case '\\':
-			_, _ = out.WriteString(`\\`)
-		case '"':
-			_, _ = out.WriteString(`\"`)
-		case '\b':
-			_, _ = out.WriteString(`\b`)
-		case '\f':
-			_, _ = out.WriteString(`\f`)
-		case '\n':
-			_, _ = out.WriteString(`\n`)
-		case '\r':
-			_, _ = out.WriteString(`\r`)
-		case '\t':
-			_, _ = out.WriteString(`\t`)
-		// \u2028 and \u2029 are separator runes that are not valid
-		// in javascript strings so they must be escaped.
-		// See http://timelessrepo.com/json-isnt-a-javascript-subset
-		case '\u2028':
-			_, _ = out.WriteString(`\u2028`)
-		case '\u2029':
-			_, _ = out.WriteString(`\u2029`)
-		default:
-			// Any other control runes must be escaped
-			if unicode.IsControl(r) {
-				_, _ = fmt.Fprintf(out, `\u%04X`, r)
-			} else {
-				// Unescaped rune
-				_, _ = out.WriteRune(r)
-			}
-		}
+		writeQuotedRune(out, r)
 	}
 
 	_ = out.WriteByte('"')
 	return out.String()
-
 }

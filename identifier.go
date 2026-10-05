@@ -50,20 +50,17 @@ var reservedWords = map[string]bool{
 //	a key with spaces      -> false
 //	1startsWithANumber	  -> false
 func validIdentifier(s string) bool {
-	if reservedWords[s] || s == "" {
-		return false
-	}
-
 	for i, r := range s {
-		if i == 0 && !validFirstRune(r) {
-			return false
+		valid := validSecondaryRune(r)
+		if i == 0 {
+			valid = validFirstRune(r)
 		}
-		if i != 0 && !validSecondaryRune(r) {
+		if !valid {
 			return false
 		}
 	}
 
-	return true
+	return s != "" && !reservedWords[s]
 }
 
 // validFirstRune returns true for runes that are valid
@@ -85,6 +82,8 @@ func validFirstRune(r rune) bool {
 // validSecondaryRune returns true for runes that are valid
 // as anything other than the first rune in an identifier.
 func validSecondaryRune(r rune) bool {
-	return validFirstRune(r) ||
-		unicode.In(r, unicode.Mn, unicode.Mc, unicode.Nd, unicode.Pc)
+	if unicode.In(r, unicode.Mn, unicode.Mc, unicode.Nd, unicode.Pc) {
+		return true
+	}
+	return validFirstRune(r)
 }

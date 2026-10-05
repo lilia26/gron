@@ -494,6 +494,11 @@ func recursiveSliceMerge(a, b []interface{}) ([]interface{}, error) {
 	outLen := len(a)
 	if len(b) > outLen {
 		outLen = len(b)
+
+		// Reuse an unoccupied trailing position when extending
+		if len(a) > 0 && a[len(a)-1] == nil {
+			outLen--
+		}
 	}
 	out := make([]interface{}, outLen)
 

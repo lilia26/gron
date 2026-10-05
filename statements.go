@@ -118,14 +118,16 @@ func (s statement) withQuotedKey(k string) statement {
 // withNumericKey returns a copy of a statement with a new
 // numeric key token appended to it
 func (s statement) withNumericKey(k int) statement {
-	new := make(statement, len(s), len(s)+3)
-	copy(new, s)
-	return append(
-		new,
-		token{"[", typLBrace},
-		token{strconv.Itoa(k), typNumericKey},
-		token{"]", typRBrace},
-	)
+	n := len(s)
+	out := make(statement, n+3)
+
+	// The path occupies [0,n); reserve three tokens for [index]
+	copy(out[:n], s)
+	out[n] = token{"[", typLBrace}
+	out[n+1] = token{strconv.Itoa(k), typNumericKey}
+	out[n+2] = token{"]", typRBrace}
+
+	return out
 }
 
 // statements is a list of assignment statements.
